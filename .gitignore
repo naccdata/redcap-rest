@@ -3,3 +3,6 @@ test.txt
 vendor/
 composer.lock
 .phpunit.cache/
+
+# Build output from build.sh
+dist/
