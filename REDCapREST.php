@@ -614,7 +614,7 @@ class REDCapREST extends AbstractExternalModule {
                     return '<span class="module-hidden"><pre>'.\htmlspecialchars($logic,ENT_QUOTES).'</pre></span><button class="module-btn-show btn btn-xs btn-outline-primary" title="View Trigger Logic"><i class="fa-solid fa-bolt mx-2"></i></button>';
                 }
             }),
-            array('title'=>'Destination URL','tdclass'=>'text-center','getter'=>function(array $instruction){ 
+            array('title'=>'Request URL','tdclass'=>'text-center','getter'=>function(array $instruction){ 
                 $dest_url = \htmlspecialchars($instruction['dest-url'], ENT_QUOTES);
                 if (empty($dest_url)) {
                     return '<i class="fa-solid fa-minus text-danger"></i>';
@@ -833,7 +833,7 @@ class REDCapREST extends AbstractExternalModule {
                 </li>
                 <li><strong>Trigger form(s)</strong> (optional): A separated<sup>*</sup> list of form names.</li>
                 <li><strong>Trigger condition</strong> (optional): A REDCap logic expression.</li>
-                <li><strong>Destination URL</strong> (required): URL of endpoint where message will be sent.</li>
+                <li><strong>Request URL</strong> (required): URL of endpoint where message will be sent.</li>
                 <li><strong>HTTP method</strong> (required): The desired HTTP verb: <code>POST</code> <code>GET</code> <code>PUT</code> <code>PATCH</code> <code>DELETE</code>.</li>
                 <li><strong>Payload</strong> (optional): Payload form e.g. as JSON (piping supported).</li>
                 <li><strong>Content type</strong> (optional): Content type for request, e.g. application/json (default), application/x-www-form-urlencoded.</li>
@@ -1118,7 +1118,7 @@ class REDCapREST extends AbstractExternalModule {
 
         // make export file contents 
         $filename = "REDCap_REST_Export_pid".$project_id."_".date("Y-m-d_Hi");
-        $titles = array('Description','Enabled','Trigger form(s)','Trigger condition','Destination URL','HTTP Method','Message Payload','Content Type','Additional Headers','cURL Options','OAuth2 Option','Oauth2 Config','Save Response To Field','Save Response Code To Field','Data Mapping - Property Name','Data Mapping - Save to Field');
+        $titles = array('Description','Enabled','Trigger form(s)','Trigger condition','Request URL','HTTP Method','Message Payload','Content Type','Additional Headers','cURL Options','OAuth2 Option','Oauth2 Config','Save Response To Field','Save Response Code To Field','Data Mapping - Property Name','Data Mapping - Save to Field');
 
         $fp = fopen(APP_PATH_TEMP.$filename, 'w');
         fputcsv($fp, $titles, $delimiter, '"', '');
