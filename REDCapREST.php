@@ -584,6 +584,7 @@ class REDCapREST extends AbstractExternalModule {
         $versionDropdown = \RCView::select(array('id'=>'module-version','name'=>'module-version'), $versions);
 
         $instructions = $this->getSubSettings('message-config');
+        $systemTokens = $this->getSubSettings('token-management'); // injected into Instruction for token-ref scope validation
         $columns = array(
             array('title'=>'#','tdclass'=>'text-center','getter'=>function(array $instruction){ return '<span class="module-seq"></span>'; }),
             array('title'=>'Description','tdclass'=>'text-center','getter'=>function(array $instruction){ 
@@ -596,9 +597,9 @@ class REDCapREST extends AbstractExternalModule {
                     return '<span class="module-hidden">'.str_replace("\n",'<br>',$desc).'</span><button class="module-btn-show btn btn-xs btn-outline-primary" title="View full description">'.$descDisplay.'</button>';
                 }
             }),
-            array('title'=>'Enabled','tdclass'=>'text-center','getter'=>function(array $instruction){ 
+            array('title'=>'Enabled','tdclass'=>'text-center','getter'=>function(array $instruction) use ($systemTokens){ 
                 $enabledDesc = '<i class="fa-solid '.(($instruction['message-enabled']) ? 'fa-check text-success' : 'fa-times text-danger').'"></i>';
-                $messageInstruction = new Instruction($instruction);
+                $messageInstruction = new Instruction($instruction, null, $systemTokens);
                 $configErrors = $messageInstruction->getConfigErrors();
                 if (count($configErrors)) {
                     $errMsg = '<ul><li>'.implode('</li><li>', $configErrors).'</li></ul>';
