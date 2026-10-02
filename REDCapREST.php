@@ -17,6 +17,7 @@ class REDCapREST extends AbstractExternalModule {
     const MODULE_TITLE = "REDCap REST";
     protected const DISPLAY_MAX_FIELD_MAP = 5;
     protected const IMPORT_ACTION = 'import-instructions';
+    private const TOKEN_REF_FIELDS = array('payload', 'curl-headers', 'oauth2-config');
     protected $configArray;
     protected $Proj;
     protected $record;
@@ -499,6 +500,90 @@ class REDCapREST extends AbstractExternalModule {
         return array($response, $info);
     }
 
+    /**
+     * buildTokenRefHelpText()
+     * Pure, names-only helper (the Name_Injection_Helper). Extracts the reference
+     * NAMES from the system token-management sub-settings, dedupes (first-seen
+     * order), drops empty/malformed entries, HTML-escapes each name, and returns
+     * the Help_Text HTML to inject near the token-ref fields.
+     *
+     * Only reference names are surfaced; token values (token-specified) and
+     * token-url scope context are never included. On an empty name list a neutral
+     * no-references note is returned instead of a name list.
+     *
+     * @param array $systemTokens token-management sub-settings array
+     * @return string Help_Text HTML fragment
+     */
+    private function buildTokenRefHelpText(array $systemTokens): string
+    {
+        // Extract names defensively: ignore entries that are not arrays, that lack
+        // 'token-ref', or whose token-ref is empty/whitespace or non-string.
+        $names = array();
+        foreach ($systemTokens as $entry) {
+            if (!is_array($entry) || !array_key_exists('token-ref', $entry)) continue;
+            $ref = $entry['token-ref'];
+            if (!is_string($ref)) continue;
+            $ref = trim($ref);
+            if ($ref === '') continue;
+            $names[$ref] = true; // dedupe, preserve first-seen order
+        }
+        $names = array_keys($names);
+
+        if (empty($names)) {
+            // Neutral note, no name list.
+            return '<div class="text-muted" style="font-size:85%;">'
+                 . 'No system token references are defined. '
+                 . 'Ask your administrator to configure token references at the system level.'
+                 . '</div>';
+        }
+
+        // Names only; never any token value. Escape user-defined names.
+        $items = array();
+        foreach ($names as $n) {
+            $items[] = '<code>[token-ref:' . htmlspecialchars($n, ENT_QUOTES) . ']</code>';
+        }
+        return '<div class="text-muted" style="font-size:85%;">'
+             . 'Available system token references: ' . implode(' ', $items)
+             . '</div>';
+    }
+
+    /**
+     * injectTokenRefHelp()
+     * Recursively walks the configuration $settings structure and appends the
+     * given Help_Text to the displayed name of each Token_Ref_Field (payload,
+     * curl-headers, oauth2-config). Descends into any nested sub_settings so the
+     * targets nested under message-config are reached.
+     *
+     * Only the 'name' of a matched definition is mutated; 'key', 'type',
+     * 'choices', and any editable value are left intact.
+     *
+     * @param array  $settings the settings/sub_settings definition array
+     * @param string $helpText the Help_Text HTML fragment to append
+     * @return array the modified $settings
+     */
+    private function injectTokenRefHelp(array $settings, string $helpText): array
+    {
+        foreach ($settings as $i => $def) {
+            if (!is_array($def)) continue;
+
+            // Append to the field's displayed name if it is a target. Only 'name'
+            // is touched - key, type, and any values are left intact.
+            if (isset($def['key']) && in_array($def['key'], self::TOKEN_REF_FIELDS, true)) {
+                $name = isset($def['name']) && is_string($def['name']) ? $def['name'] : '';
+                $settings[$i]['name'] = $name . $helpText;
+            }
+
+            // Descend into nested setting definitions (message-config and any
+            // deeper sub_settings). This is what the top-level summary-page loop
+            // does NOT do.
+            if (isset($def['sub_settings']) && is_array($def['sub_settings'])) {
+                $settings[$i]['sub_settings'] =
+                    $this->injectTokenRefHelp($def['sub_settings'], $helpText);
+            }
+        }
+        return $settings;
+    }
+
     /*
      * redcap_module_configuration_settings()
      * Triggered when the system or project configuration dialog is displayed for a given module.
@@ -514,6 +599,11 @@ class REDCapREST extends AbstractExternalModule {
                     break;
                 }
             }
+
+            // Surface system token-ref names into the token-ref fields (read at display time)
+            $systemTokens = $this->getSubSettings('token-management');
+            $helpText     = $this->buildTokenRefHelpText($systemTokens);
+            $settings     = $this->injectTokenRefHelp($settings, $helpText);
         }
         return $settings;
     }
