@@ -74,13 +74,7 @@ class REDCapREST extends AbstractExternalModule {
             $payloadForLog = $instruction['payload'];
             try {
                 $payload = $this->formatPayload($instruction['payload'], $contentType);
-                $payloadForLog = $payload;
-                if (!empty($this->resolvedTokens)) {
-                    foreach ($this->resolvedTokens as $ref => $value) {
-                        if (empty($value)) continue;
-                        $payloadForLog = str_replace($value, '|||Token '.$ref.' removed|||', $payloadForLog);
-                    }
-                }
+                $payloadForLog = $this->maskSecrets($payload);
             } catch (\JsonException $je) {
                 \REDCap::logEvent($this->title, 'Error parsing payload JSON string: '.$je->getMessage().PHP_EOL.$payloadForLog, '', $this->record, $this->event_id);
                 return;
@@ -442,6 +436,22 @@ class REDCapREST extends AbstractExternalModule {
             $result = $data;
         }
         return \REDCap::filterHtml(htmlspecialchars_decode($result));
+    }
+
+    /**
+     * maskSecrets()
+     * Replace any resolved [token-ref:...] values with a masking placeholder so
+     * secrets never appear in cleartext in log output. Single source of truth for
+     * resolved-token masking, reused by redcap_save_record() and the OAuth2 classes.
+     */
+    public function maskSecrets(string $text): string {
+        if (!empty($this->resolvedTokens)) {
+            foreach ($this->resolvedTokens as $ref => $value) {
+                if (empty($value)) continue;
+                $text = str_replace($value, '|||Token '.$ref.' removed|||', $text);
+            }
+        }
+        return $text;
     }
 
     /**
