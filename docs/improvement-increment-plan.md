@@ -67,15 +67,17 @@ memory of the conversation that produced it.
 
 ## Increment tiers at a glance
 
-| Tier | Increment | Size | Spec needed? | Upstream candidate? |
-|---|---|---|---|---|
-| 1 | A. Token-exchange logging | Small | No | Yes |
-| 1 | B. Documentation + cross-config walkthrough | Small | No | Yes |
-| 1 | C. Config field-label review | Small (fiddly) | No (agree wording first) | Yes |
-| 2 | D. Config validation + scope-match warnings | Medium | Lightweight | Yes |
-| 2 | E. Surface system token-ref keys in project dialog | Medium | Lightweight | Maybe |
-| 3 | F. Conditional field display | Medium–Large | Yes + spike | Maybe |
-| 3 | G. Project-side "validate configuration" action | Large | Yes | Maybe |
+Status legend: ✅ done · 🔄 in progress · ⬜ not started
+
+| Tier | Increment | Status | Size | Spec needed? | Upstream candidate? |
+|---|---|---|---|---|---|
+| 1 | A. Token-exchange logging | ✅ done | Small | No | Yes |
+| 1 | B. Documentation + cross-config walkthrough | ✅ done | Small | No | Yes |
+| 1 | C. Config field-label review | ✅ done | Small (fiddly) | No (agree wording first) | Yes |
+| 2 | D. Config validation + scope-match warnings | ⬜ not started | Medium | Lightweight | Yes |
+| 2 | E. Surface system token-ref keys in project dialog | ⬜ not started | Medium | Lightweight | Maybe |
+| 3 | F. Conditional field display | ⬜ not started | Medium–Large | Yes + spike | Maybe |
+| 3 | G. Project-side "validate configuration" action | ⬜ not started | Large | Yes | Maybe |
 
 ---
 
@@ -87,6 +89,10 @@ troubleshooting session (A and C).
 
 ### Increment A — Token-exchange logging
 
+- **Status:** ✅ **done.** Merged into `develop` (commit `07485bf`). Added masked
+  token-exchange logging (endpoint + status on every attempt, response body
+  masked incl. `access_token`) and a `maskSecrets()` helper; failure exceptions
+  enriched with status + masked body. Suite green (20 tests, 64 assertions).
 - **Goal:** make the OAuth2 token exchange observable so a failure is diagnosable
   from the logs alone.
 - **Scope:** `OAuth2ClientCredentials.php` (possibly a shared helper in
@@ -102,6 +108,12 @@ troubleshooting session (A and C).
 
 ### Increment B — Documentation + cross-config walkthrough
 
+- **Status:** ✅ **done.** Added to `README.md`: an OAuth2 (Client Credentials)
+  example, a dedicated "OAuth2 (Client Credentials) setup" section with a
+  two-step system→project walkthrough and a "Common pitfalls" subsection
+  (full `auth-url` path, token-scope-vs-request-URL, unused `username`/`password`),
+  and aligned the README's field-label references with the Increment C renames
+  (Request URL, Request URL prefix (token scope), Reference name).
 - **Goal:** document the non-obvious setup, especially the system↔project round
   trip.
 - **Scope:** `README.md` (and/or field help). Add: `auth-url` must be the full
@@ -116,6 +128,14 @@ troubleshooting session (A and C).
 
 ### Increment C — Config field-label review
 
+- **Status:** ✅ **done.** Merged into `develop` (merge `f420ebb`, change
+  `d197330`). `dest-url` → "Request URL"; `token-url` → "Request URL prefix
+  (token scope)" with prefix-match help; `token-ref` → "Reference name"; OAuth2
+  example uses `/oauth/token` and drops the unused `username`/`password` keys.
+  Mirrored "Request URL" into the summary-page column, CSV export header, and
+  help doc (CSV import is positional and skips the header row, so the rename is
+  safe). Wording approved by owner before applying. JSON valid, `php -l` clean,
+  suite green.
 - **Goal:** remove ambiguous/overloaded labels, chiefly the two different
   "Destination URL" fields.
 - **Scope:** `config.json` `name` strings (and dependent summary-page column
@@ -134,8 +154,8 @@ troubleshooting session (A and C).
 - **Done when:** proposed wording is approved, and both dialogs and the summary
   page render with the approved labels and no broken markup.
 
-**Tier 1 exit:** three merged PRs (A, B, C). Reassess whether Tier 2 is warranted
-based on how often setup issues recur.
+**Tier 1 exit:** A, B, and C all merged into `develop` ✅ — **Tier 1 complete.**
+Reassess whether Tier 2 is warranted based on how often setup issues recur.
 
 ---
 
@@ -231,7 +251,7 @@ candidates for Kiro **Spec** sessions (requirements → design → tasks).
 Resolved:
 
 - **Upstream vs. fork:** all increments are **fork-local** (branch from and merge
-  to `deploy-utilities`). Revisit only by explicit decision.
+  to `develop`). Revisit only by explicit decision.
 - **Label wording (Increment C):** produced *within* the task and approved by a
   human before finalizing (see Increment C).
 
