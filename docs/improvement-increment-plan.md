@@ -12,10 +12,10 @@ order, deliverables, and which items need a spec.
 - **Order by value-to-risk.** Do the high-value, low-risk items first; defer the
   items with design unknowns until a spike resolves them.
 - **Fork-local for now.** All increments in this plan are **fork-local**: branch
-  from `deploy-utilities` and merge back there. Do **not** open upstream PRs for
-  these without an explicit decision to do so. (Two upstream PRs already exist —
-  `lsgs/redcap-rest` #9 token-ref fix, #10 403-retry — but those are separate and
-  not part of this plan.)
+  from `develop` (the integration branch) and merge back there. Do **not** open
+  upstream PRs for these without an explicit decision to do so. (Two upstream PRs
+  already exist — `lsgs/redcap-rest` #9 token-ref fix, #10 403-retry — but those
+  are separate and not part of this plan.)
 - **Verify in the live dialog.** Any change to `config.json` label strings or the
   configuration dialog must be checked against the rendered dialog and the
   summary page, because label strings are also consumed as summary-page column
@@ -26,14 +26,19 @@ order, deliverables, and which items need a spec.
 Read this before starting any increment. A session picking up this work has no
 memory of the conversation that produced it.
 
-- **Repository state.** Work happens in the `naccdata/redcap-rest` fork. The
-  active working branch is `deploy-utilities`, which already contains: the
-  build/deploy tooling, a merged 403-retry fix, and the merged multi-token-ref
-  fix (`pipeApiToken` resolving all `[token-ref:...]` placeholders).
-- **Base branch for every increment:** branch from **`deploy-utilities`** and
-  merge back into it. All increments here are **fork-local** (see Guiding
-  Principles). Use a descriptive branch per increment, e.g.
-  `feat/token-exchange-logging`.
+- **Repository state & branch model.** Work happens in the `naccdata/redcap-rest`
+  fork, which uses these branches:
+  - **`develop`** — the integration/base branch. All working increments branch
+    from it and merge back into it. Build/deploy from here. It includes the
+    NACC build/deploy tooling plus all merged fork-local work (403-retry fix,
+    multi-token-ref `pipeApiToken` fix, and the increments in this plan).
+  - **`deploy-utilities`** — the NACC build/deploy tooling branch. Historical/
+    tooling home; not the place feature work accumulates. (`develop` was created
+    from it, so it currently shares history.)
+  - **`main`** — tracks the upstream baseline; do not develop directly on it.
+- **Base branch for every increment:** branch from **`develop`** and merge back
+  into it. All increments here are **fork-local** (see Guiding Principles). Use a
+  descriptive branch per increment, e.g. `feat/token-exchange-logging`.
 - **Open upstream PRs (context, not a constraint):** `lsgs/redcap-rest` #9
   (token-ref fix) and #10 (403-retry) are open against the upstream maintainer.
   Increment A touches `OAuth2ClientCredentials.php` and Increment C touches
