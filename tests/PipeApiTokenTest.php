@@ -2,10 +2,12 @@
 /**
  * Tests for REDCapREST::pipeApiToken()
  *
- * Exercises the REAL pipeApiToken method (the OAuth2 suite mocks it) to verify
- * that ALL [token-ref:...] occurrences in a single string are resolved against
- * their own matching system token entry, that each resolved value is recorded
- * for log masking, and that an unresolved reference throws.
+ * Exercises the REAL pipeApiToken method (the OAuth2 suite mocks it) to verify:
+ *  - ALL [token-ref:...] occurrences in a single string are resolved against
+ *    their own matching system token entry, each resolved value is recorded
+ *    for log masking, and an unresolved reference throws; and
+ *  - the optional $targetURL argument scopes the token-url check independently
+ *    from the resource destURL.
  *
  * All token values here are placeholders; no real secrets are used.
  */
@@ -23,6 +25,10 @@ class PipeApiTokenTest extends TestCase
     private const CLIENT_ID_VALUE = 'client-id-value';
     private const SECRET_REF = 'echo-test-api-secret';
     private const SECRET_VALUE = 'secret-value';
+
+    private const HOST          = 'https://host.example.com';
+    private const TOKEN_URL     = 'https://host.example.com/token';
+    private const RESOURCE_URL  = 'https://host.example.com/echo';
 
     /**
      * Two 'specify' system token entries scoped to the same destination URL.
@@ -80,6 +86,21 @@ class PipeApiTokenTest extends TestCase
     {
         $ref = new \ReflectionProperty(REDCapREST::class, $prop);
         return $ref->getValue($obj);
+    }
+
+    private function setDestURL(REDCapREST $module, string $url): void
+    {
+        $this->setProtected($module, 'destURL', $url);
+    }
+
+    private function tokenEntry(string $tokenUrl, string $tokenValue): array
+    {
+        return [
+            'token-ref'           => 'ref',
+            'token-url'           => $tokenUrl,
+            'token-lookup-option' => 'specify',
+            'token-specified'     => $tokenValue,
+        ];
     }
 
     public function testResolvesBothTokenReferencesInOneString(): void
@@ -149,5 +170,38 @@ class PipeApiTokenTest extends TestCase
             $this->assertStringContainsString(self::CLIENT_ID_REF, $e->getMessage());
             $this->assertStringContainsString(self::DEST_URL, $e->getMessage());
         }
+    }
+
+    public function testTargetUrlResolvesWhenScopedToTokenEndpoint(): void
+    {
+        // Resource call targets the /echo URL, but the token entry is scoped to /token.
+        $module = $this->makeModule([$this->tokenEntry(self::TOKEN_URL, 'secret-value')]);
+        $this->setDestURL($module, self::RESOURCE_URL);
+
+        $result = $module->pipeApiToken('[token-ref:ref]', self::TOKEN_URL);
+
+        $this->assertEquals('secret-value', $result);
+    }
+
+    public function testTokenUrlAndDestUrlAreIndependent(): void
+    {
+        // Same /token-scoped entry, but no target: the scope falls back to the
+        // /echo destURL, which does not start with /token, so it must NOT resolve.
+        $module = $this->makeModule([$this->tokenEntry(self::TOKEN_URL, 'secret-value')]);
+        $this->setDestURL($module, self::RESOURCE_URL);
+
+        $this->expectException(\Exception::class);
+        $module->pipeApiToken('[token-ref:ref]');
+    }
+
+    public function testResourceCallStillUsesDestUrlWhenNoTarget(): void
+    {
+        // Regression guard: with no target, the scope check uses destURL as before.
+        $module = $this->makeModule([$this->tokenEntry(self::HOST, 'resource-token')]);
+        $this->setDestURL($module, self::RESOURCE_URL);
+
+        $result = $module->pipeApiToken('[token-ref:ref]');
+
+        $this->assertEquals('resource-token', $result);
     }
 }

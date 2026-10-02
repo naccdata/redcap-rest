@@ -196,10 +196,12 @@ class REDCapREST extends AbstractExternalModule {
      * @param string
      * @return string 
      */
-    public function pipeApiToken($string) {
+    public function pipeApiToken($string, $targetURL = null) {
         $pattern = "/\[token-ref:([-\w]+)\]/";
         $matches = array();
         if (!preg_match_all($pattern, $string, $matches, PREG_SET_ORDER)) return $string;
+
+        $scopeURL = ($targetURL !== null && $targetURL !== '') ? $targetURL : $this->destURL;
 
         if (!is_array($this->resolvedTokens)) $this->resolvedTokens = array();
         $systemTokens = $this->getSubSettings('token-management');
@@ -216,14 +218,14 @@ class REDCapREST extends AbstractExternalModule {
             $systemToken = null;
             foreach ($systemTokens as $i => $candidate) {
                 if ( $ref==$candidate['token-ref'] &&
-                    starts_with($this->destURL, $candidate['token-url']) ) {
+                    starts_with($scopeURL, $candidate['token-url']) ) {
                     $systemToken = $candidate;
                     $found = true;
                     break;
                 }
             }
 
-            if (!$found) throw new \Exception('Token with reference "'.$ref.'" for destination URL "'.$this->destURL.'" not found in system-level token management.');
+            if (!$found) throw new \Exception('Token with reference "'.$ref.'" for destination URL "'.$scopeURL.'" not found in system-level token management.');
 
             $token = '';
             if ($systemToken['token-lookup-option']==='lookup') {

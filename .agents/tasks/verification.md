@@ -1,67 +1,39 @@
-# Verification — Increment A: Token-exchange logging
+# Verification — OAuth2 token-ref scope fix
 
-Branch: `feat/token-exchange-logging` (fork-local, no PR, no deploy).
+## Changes made
+- `REDCapREST.php`: `pipeApiToken($string)` → `pipeApiToken($string, $targetURL = null)`.
+  Added `$scopeURL = ($targetURL !== null && $targetURL !== '') ? $targetURL : $this->destURL;`
+  and switched the `$this->destURL` usages (the `starts_with(...)` scope check and the
+  "not found" exception message) to `$scopeURL`. The default preserves identical behavior for
+  the only resource-call caller, `pipe()`, which passes no second argument. Rebased onto
+  `develop`, this fix is layered on the multi-token (`preg_match_all`) resolver so every
+  distinct `[token-ref:...]` is scope-checked against `$scopeURL`.
+- `OAuth2.php` constructor: parse `auth-url` from the RAW config (literal, not a token-ref) and
+  pass it as the `$targetURL` so OAuth2 credential refs are scoped to the token endpoint.
+  Invalid JSON / missing `auth-url` yields `$authUrl = null` and falls back to `$this->destURL`
+  (prior behavior); no new fatal thrown.
+- `tests/PipeApiTokenTest.php`: exercises the real `pipeApiToken()` (only
+  `getSubSettings`/`escape`/`query` stubbed; protected `destURL` set via reflection) and proves:
+  1. a `/token`-scoped entry resolves when `$targetURL` = `.../token`;
+  2. the same entry does NOT resolve with no target (scope = `.../echo` destURL) — URLs independent;
+  3. regression guard: with no target, scope still uses `destURL` as before;
+  plus the pre-existing multi-token resolution and masking cases retained from `develop`.
 
-## Environment
-
-- `php` 8.5.11 and `composer` 2.10 on PATH (`/opt/homebrew/bin/php`, `/opt/homebrew/bin/composer`).
-- `vendor/` already present in the worktree; `composer install` was not required.
-
-## Commands run (from the worktree root)
-
+## Dependency setup
 ```
-./vendor/bin/phpunit --configuration phpunit.xml --display-deprecations
+composer install --no-interaction
+```
+(`vendor/`, `composer.lock`, `.phpunit.cache/` are gitignored and not committed.)
+
+## Syntax check
+```
+php -l REDCapREST.php && php -l OAuth2.php && php -l tests/PipeApiTokenTest.php
 ```
 
-## Results
+## Test command run (from worktree root)
+```
+./vendor/bin/phpunit
+```
 
-- Baseline (before changes): **17 tests, 51 assertions, OK.**
-- After changes: **20 tests, 64 assertions, OK** — no failures, no deprecations.
-
-The suite was run and passed in this environment; the reviewer does not need to
-re-run it to confirm the result above.
-
-## What changed (and why it's verified)
-
-1. `REDCapREST::maskSecrets(string $text): string` — new public method, single
-   source of truth for resolved-`[token-ref:...]` masking. The inline loop in
-   `redcap_save_record()` that built `$payloadForLog` was refactored to call it.
-   The existing 17 tests (which cover the payload-masking path indirectly) still
-   pass, confirming the refactor preserved behavior.
-
-2. `OAuth2ClientCredentials::updateAccessToken()` — logs every token-exchange
-   attempt (success and failure) via `$this->module->log(...)`, consistent with
-   the existing `cURL info:` line, recording the endpoint URL and HTTP status.
-   The response body is masked before it reaches any log line or exception:
-   first `$this->module->maskSecrets(...)` for resolved client-id/secret values,
-   then `str_replace` of the returned `access_token` with
-   `|||access_token removed|||`. Failure throws now include the HTTP status and
-   masked body while PRESERVING the `\Exception` type and the original message
-   substrings (`Unable to obtain access token`, `Unexpected access token
-   response`), so `redcap_save_record()`'s try/catch behavior is unchanged.
-
-## New tests (tests/OAuth2ClientCredentialsTest.php)
-
-- `testFailedExchangeLogsStatusAndEnrichedException` — non-200 (401) logs the
-  endpoint + `HTTP 401`; thrown exception message contains both
-  `Unable to obtain access token` and `401`.
-- `testAccessTokenMaskedInLogs` — a 200 body whose `access_token` is the
-  sentinel `SUPER-SECRET-TOKEN-XYZ`; asserts the raw sentinel appears in NO
-  logged message and that `|||access_token removed|||` is present, plus the
-  exchange was logged with the endpoint and `HTTP 200`.
-- `testMaskSecretsReplacesResolvedTokenValue` — exercises
-  `REDCapREST::maskSecrets()` directly with a reflection-set `resolvedTokens`
-  map (the existing OAuth2 mock does not populate `resolvedTokens`, so a direct
-  unit test on the single source of truth is the faithful check); asserts a
-  known resolved secret is replaced by `|||Token <ref> removed|||`.
-
-The `log` mock now captures messages so tests can assert on logged content.
-
-## Constraints honored
-
-- No secret, client_secret, client_id value, or access_token appears unmasked in
-  any log line (verified by the masking tests).
-- No method signatures changed; `oauth2Call` and `updateAccessToken` keep their
-  signatures. `maskSecrets` is additive and public.
-- Observability-only: token-exchange protocol, 401/403 retry, caching, and
-  `pipeApiToken` are untouched.
+All tests pass (existing `OAuth2ClientCredentialsTest` + `PipeApiTokenTest`), no deprecations.
+The exact run and output after the rebase are recorded in the integration step report.
