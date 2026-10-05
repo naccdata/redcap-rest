@@ -147,15 +147,17 @@ the client secret), each using lookup option **"Use token as specified"**:
 
 | Reference name | Request URL prefix (token scope) | Value |
 |---|---|---|
-| `my-client-id` | `https://api.example.org` | *your client id* |
-| `my-client-secret` | `https://api.example.org` | *your client secret* |
+| `my-client-id` | `https://api.example.org/oauth/token` | *your client id* |
+| `my-client-secret` | `https://api.example.org/oauth/token` | *your client secret* |
 
 * **Reference name** is the `xyz` you will reference as `[token-ref:xyz]` in the
   project. It must match exactly — a typo surfaces only later as a
   "Token ... not found" error.
 * **Request URL prefix (token scope)** is a *prefix match*, not a full URL: the
-  token is substituted only when the outgoing request URL **begins with** this
-  value. See the scope pitfall below for why this must cover the request URL.
+  token is substituted only when the URL it is being used for **begins with**
+  this value. For client-credentials, the client id and secret are sent to the
+  **token endpoint**, so scope them to the `auth-url` — see the scope pitfall
+  below.
 * Paste values carefully — a stray leading/trailing character is invisible in the
   textarea and will cause an authentication failure that looks like a wrong
   secret.
@@ -192,13 +194,14 @@ body come back.
   token request to `auth-url` **verbatim** — it appends nothing. A bare host like
   `https://api.example.org` will fail; use the full path, e.g.
   `https://api.example.org/oauth/token`.
-* **Token scope is checked against the *request* URL, not the auth URL.** The
-  `[token-ref:...]` scope prefix (Step 1) is compared against the message's
-  **Request URL** (the resource URL), even for credentials that are sent to the
-  token endpoint. Scope the entries to a prefix that covers the request URL — the
-  common host (e.g. `https://api.example.org`) is usually the safe choice, since
-  it is a prefix of both the resource and token URLs. Scoping only to the token
-  path (e.g. `.../oauth/token`) will fail the check against the resource URL.
+* **OAuth2 credentials are scoped against the `auth-url`, not the request URL.**
+  The `[token-ref:...]` references in the OAuth2 configuration (the client id and
+  secret) are substituted for the call to the **token endpoint**, so their scope
+  prefix (Step 1) is compared against the `auth-url` — not the message's Request
+  URL. Scope those entries to a prefix of the `auth-url`; the full token-endpoint
+  path (e.g. `https://api.example.org/oauth/token`) is the tightest, safest
+  choice. (Token-refs used elsewhere, such as in the payload or headers, are
+  still scoped against the message's Request URL.)
 * **`username`/`password` are not used by client-credentials.** Only `auth-url`,
   `client-id`, and `client-secret` are read from the OAuth2 configuration for the
   client-credentials grant. Any `username`/`password` keys are ignored.
@@ -211,7 +214,7 @@ Configure sensitive configuration such as API or Autorization tokens at system l
 * Unique reference or key for each token. Reference in project module settings in piping-style form as <code>[token-ref:xyz]</code> where <code>xyz</code> matches this reference.
 
 **Request URL prefix (token scope)**
-* The token is substituted only when the outgoing request URL **begins with** this value (a prefix match). Helps prevent exposing the token to an unintended URL. For OAuth2 client-credentials, scope this to a prefix that covers the message's Request URL (commonly the shared host) — see the [OAuth2 setup pitfalls](#common-pitfalls).
+* The token is substituted only when the target URL **begins with** this value (a prefix match). Helps prevent exposing the token to an unintended URL. For OAuth2 client-credentials, the credentials go to the token endpoint, so scope their entries to a prefix of the `auth-url` (the full token-endpoint path is the tightest choice) — see the [OAuth2 setup pitfalls](#common-pitfalls).
 
 **Token Lookup Option**
 * Choose whether to specify the sensitive value or look up an API token for a project and user in the current instance of REDCap. 
