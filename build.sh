@@ -115,7 +115,18 @@ done
 # --- Package ----------------------------------------------------------------
 # Tar with the versioned directory as the top-level entry so it extracts
 # straight into a modules/ directory.
-tar -C "${DIST_DIR}" -czf "${TARBALL}" "${RELEASE_NAME}"
+#
+# --no-xattrs: macOS stamps files with the com.apple.provenance extended
+# attribute (Gatekeeper). Apple's bsdtar would otherwise store it as a
+# LIBARCHIVE.xattr.com.apple.provenance pax header, which GNU tar on the Linux
+# target does not recognise and warns about once per file on extract. Excluding
+# xattrs keeps those (harmless but noisy) warnings out of the deploy output.
+# COPYFILE_DISABLE stops macOS from adding ._* AppleDouble entries too.
+TAR_OPTS=()
+if tar --no-xattrs -cf /dev/null -T /dev/null >/dev/null 2>&1; then
+  TAR_OPTS+=(--no-xattrs)
+fi
+COPYFILE_DISABLE=1 tar "${TAR_OPTS[@]}" -C "${DIST_DIR}" -czf "${TARBALL}" "${RELEASE_NAME}"
 
 echo "==> Contents:"
 ( cd "${RELEASE_DIR}" && find . -type f | sort | sed 's/^/      /' )
