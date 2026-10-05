@@ -6,3 +6,5 @@ composer.lock
 
 # Build output from build.sh
 dist/
+# Kiro spec/workspace files (local only)
+.kiro/
