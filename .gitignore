@@ -8,3 +8,5 @@ composer.lock
 dist/
 # Kiro spec/workspace files (local only)
 .kiro/
+# Agent workflow scratch artifacts (local only)
+.agents/
